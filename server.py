@@ -1,5 +1,7 @@
 #  coding: utf-8 
+import re
 import socketserver
+from urllib import response
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
@@ -32,15 +34,46 @@ class MyWebServer(socketserver.BaseRequestHandler):
     def handle(self):
         self.data = self.request.recv(1024).strip()
         print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+        self.data = self.data.decode("utf-8")
+        headers = self.data.split('\r\n')
+        filename = headers[0].split()[1]
+        print(headers)
+        print('Hello123')
+        print(filename)
+        if headers[0].split()[0] != 'GET':
+            response = f'HTTP/1.1 405 Not ALLOWED\r\nContent-Type: text/html\r\n'
+        else:
+            if filename[-1] == '/':
+                filename += 'index.html'
+            try:
+                url = 'www' + filename
+                
+                if filename[-3:] == 'css':
+                    file = open(url)
+                    content = file.read()
+                    file.close()
+                    response = f'HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: {len(content)}\r\n\r\n{content}'
+                elif filename[:3] == '/..':
+                    response = f'HTTP/1.1 404 Not FOUND\r\nContent-Type: text/html\r\n'
+                else :
+                    file = open(url)
+                    content = file.read()
+                    file.close()
+                    response = f'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {len(content)}\r\n\r\n{content}'  
+                # else:
+                #     url = url + '/'
+                #     response =f'HTTP/1.1 301 Moved Permanently\r\nLocation: {url}\r\n'
+                    
+            except FileNotFoundError:
+                response = f'HTTP/1.1 404 Not FOUND\r\nContent-Type: text/html\r\n'    
+        self.request.sendall(bytearray(response,'utf-8'))        
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
-
     socketserver.TCPServer.allow_reuse_address = True
     # Create the server, binding to localhost on port 8080
     server = socketserver.TCPServer((HOST, PORT), MyWebServer)
-
     # Activate the server; this will keep running until you
     # interrupt the program with Ctrl-C
     server.serve_forever()
+
